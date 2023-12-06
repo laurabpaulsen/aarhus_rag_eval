@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-from data_load import load_loop, map_questions
+from data_load import load_loop, map_filter
 from ctransformers import AutoModelForCausalLM
 from pathlib import Path
+import json
+from tqdm import tqdm
 
 def make_input_mistral(question: str) -> str:
     system = """Du er en sprogmodel som forstår og taler kompetent dansk.
@@ -31,13 +33,29 @@ def load_mistral(model_path):
 
 
 if __name__ == '__main__':
-    jsondata = load_loop()
+    jsondata = load_loop()[:5] # a list of dictionaries
     root_dir = Path(__file__).parents[1]
-    max_new_tokens = 50
+    output_dir = root_dir / "data" / "generated"
+
+    # ensure output dir exists
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print("Loading mistral model!")
     model = load_mistral(root_dir / "models" / "openhermes-2.5-mistral-7b.Q4_K_M.gguf")
 
-    for question in map_questions(jsondata)[:2]:
-        print(question)
-        print(model(make_input_mistral(question)))
+    output_data = []
+    for question in tqdm(map_filter(jsondata, field = "question"), desc="Generating answers"):
+        data = {}
 
-        print("----------------")
+        if not question:
+            continue
+        
+        data["question"] = question
+        data["prompt"] = make_input_mistral(question)
+        data["generated"] = model(data["prompt"])
+
+        output_data.append(data)
+
+    # save to json
+    with open(output_dir / "mistral.json", "w", encoding="utf-8") as f:
+        json.dump(output_data, f, ensure_ascii=False, indent=4)
