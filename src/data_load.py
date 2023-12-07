@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 # from llama_index import download_loader
 from langchain.document_loaders import JSONLoader
+from langchain.schema.document import Document, BaseDocumentTransformer
+from typing import Any, Sequence
+
 
 root_path = Path.cwd().parent
 default_path = root_path / "data" / "loop_q_and_a_w_meta.json"
@@ -50,7 +53,7 @@ class PlainTextTransformer(BaseDocumentTransformer):
     Turn a document's page_content into plaintext by removing html tags
     see https://github.com/langchain-ai/langchain/discussions/7497
     """
-    def transform_documents(self, documents: Sequence[Document], **kwargs: Any) > Sequence[Document]:
+    def transform_documents(self, documents: Sequence[Document], **kwargs: Any) -> Sequence[Document]:
         for document in documents:
             document.page_content = document.page_content
 
@@ -72,4 +75,4 @@ if __name__ == '__main__':
     documents = [doc['internal_reference_texts'] for doc in jsondata2 if 'internal_reference_texts' in doc.keys()]
 
     documents2 = load_documents()
-    assert len(jsondata) == 700
+    assert len(jsondata1) == 700
