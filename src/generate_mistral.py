@@ -25,9 +25,11 @@ def make_input_mistral(question: str) -> str:
 
 def load_mistral(model_path):
     model = AutoModelForCausalLM.from_pretrained(
-        str(model_path), 
+        "TheBloke/OpenHermes-2.5-Mistral-7B-GGUF",
+        model_file = "openhermes-2.5-mistral-7b.Q4_K_M.gguf", 
         model_type="mistral",
-        gpu_layers=50)
+        #gpu_layers=50
+        )
     
     return model
 
