@@ -4,7 +4,11 @@ import json
 from pathlib import Path
 # from llama_index import download_loader
 from langchain.document_loaders import JSONLoader
-from langchain.document_transformers import Html2TextTransformer
+from langchain.schema.document import Document, BaseDocumentTransformer
+from bs4 import BeautifulSoup
+import re
+
+from typing import Any, Sequence
 
 import logging
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -50,12 +54,32 @@ def load_documents(doc_path: Path = docs_path):
     documents = loader.load()
     logging.info("Loading documents: finished")
     logging.info("Remove html: start")
-    html2text = Html2TextTransformer()
+    html2text = PlainTextTransformer()
     docs_plaintext = html2text.transform_documents(documents)
     logging.info("Remove html: finished")
-    return docs_plaintext
+    return documents
+
+def soup_html(html: str) -> str:
+    soup = BeautifulSoup(html)
+    text = soup.get_text("\n")
+    return re.compile("\n+").sub("\n", text)
 
 
+class PlainTextTransformer(BaseDocumentTransformer):
+    """
+    Turn a document's page_content into plaintext by removing html tags
+    see https://github.com/langchain-ai/langchain/discussions/7497
+    """
+    def transform_documents(self, documents: Sequence[Document], **kwargs: Any) -> Sequence[Document]:
+        for document in documents:
+            document.page_content = soup_html(document.page_content)
+
+
+    async def atransform_documents(
+        self, documents: Sequence[Document], **kwargs: Any
+    ) -> Sequence[Document]:
+        # Implement the asynchronous version of the method
+        return self.transform_documents(documents, **kwargs)
 
 
 if __name__ == '__main__':
