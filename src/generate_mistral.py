@@ -3,6 +3,7 @@
 from data_load import load_loop, map_filter
 from ctransformers import AutoModelForCausalLM
 from pathlib import Path
+import os
 import json
 from tqdm import tqdm
 
@@ -23,13 +24,21 @@ def make_input_mistral(question: str) -> str:
 
     return prompt
 
-def load_mistral(model_path):
+def load_mistral():
+    if os.path.expanduser("~") == "/Users/laurapaulsen":
+        gpu_layers = 50
+    else:
+        gpu_layers = 0
+
+
     model = AutoModelForCausalLM.from_pretrained(
         "TheBloke/OpenHermes-2.5-Mistral-7B-GGUF",
         model_file = "openhermes-2.5-mistral-7b.Q4_K_M.gguf", 
         model_type="mistral",
-        #gpu_layers=50
+        context_length = 4000,
+        gpu_layers=gpu_layers
         )
+    
     
     return model
 
