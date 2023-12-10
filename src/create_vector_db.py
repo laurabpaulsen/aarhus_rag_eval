@@ -1,3 +1,13 @@
+"""
+Dev notes:
+- [X] Add text splitting maybe?
+- [X] Use dfm-sentence-encoder
+
+tokenizer = AutoTokenizer.from_pretrained("KennethEnevoldsen/dfm-sentence-encoder-medium-3")
+model = AutoModel.from_pretrained("KennethEnevoldsen/dfm-sentence-encoder-medium-3")
+
+"""
+
 from pathlib import Path
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
@@ -8,7 +18,7 @@ from data_load import load_documents
 
 def prep_embeddings():
     # Define the path to the pre-trained model you want to use
-    modelPath = "sentence-transformers/all-MiniLM-l6-v2"
+    model_name = "KennethEnevoldsen/dfm-sentence-encoder-medium-3"
 
     # Create a dictionary with model configuration options, specifying to use the CPU for computations
     model_kwargs = {'device':'cpu'}
@@ -18,7 +28,7 @@ def prep_embeddings():
 
     # Initialize an instance of HuggingFaceEmbeddings with the specified parameters
     embeddings = HuggingFaceEmbeddings(
-        model_name=modelPath,     # Provide the pre-trained model's path
+        model_name=model_name,     # Provide the pre-trained model's path
         model_kwargs=model_kwargs, # Pass the model configuration options
         encode_kwargs=encode_kwargs # Pass the encoding options
     )
@@ -31,6 +41,13 @@ if __name__ in "__main__":
     outpath = path / "data" / "vector_db"
     # load data
     docs = load_documents()
+
+    # split text into smaller pieces
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size = 1000,
+        chunk_overlap  = 100
+    )
+    docs = splitter.split_documents(docs)
 
     embeddings = prep_embeddings()
 
