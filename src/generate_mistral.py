@@ -52,7 +52,7 @@ if __name__ == '__main__':
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("Loading mistral model!")
-    model = load_mistral(root_dir / "models" / "openhermes-2.5-mistral-7b.Q4_K_M.gguf")
+    model = load_mistral()
 
     output_data = []
     for question in tqdm(map_filter(jsondata, field = "question"), desc="Generating answers"):
@@ -63,7 +63,7 @@ if __name__ == '__main__':
         
         data["question"] = question
         data["prompt"] = make_input_mistral(question)
-        data["generated"] = model(data["prompt"])
+        data["answer"] = model(data["prompt"])
 
         output_data.append(data)
 
