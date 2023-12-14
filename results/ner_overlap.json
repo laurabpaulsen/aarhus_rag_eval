@@ -1,0 +1,8 @@
+{
+    "mistral": {
+        "ner_overlap": 0.0
+    },
+    "mistral_rag": {
+        "ner_overlap": 0.0
+    }
+}
