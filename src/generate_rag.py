@@ -6,6 +6,7 @@ import logging
 from tqdm import tqdm
 import json
 from generate_mistral import load_mistral
+from data_load import load_documents
 
 
 def make_input_mistral_rag(question: str, documents:list) -> str:
@@ -15,10 +16,8 @@ def make_input_mistral_rag(question: str, documents:list) -> str:
     Din opgave er at hjælpe en medarbejder fra kommunen med at rådgive dem til at gøre deres arbejde rigtigt. 
 
     Medarbejderen præsenterer dig for en række dokumenter som måske er relevante for at besvare deres spørgsmål. Hvert dokument har en title, en score og en tekst. En lav score er bedre end en høj en. 
-    Det bliver presenteret på følgende måde:
-    Dokument 1: Titel: <titel> Score: <score> Tekst: <tekst>
     
-    Giv et kort svar og henvis gerne til et dokument hvis det er relevant for spørgsmålet. Hvis du henviser til dokumentet så skriv titlen på dokumentet.
+    Giv et kort svar og henvis gerne til et dokument hvis det er relevant for spørgsmålet.
     """
     system_en = """
     You are a language model that understands and speaks competent Danish. 
@@ -30,7 +29,7 @@ def make_input_mistral_rag(question: str, documents:list) -> str:
     The documents will be presented to you first followed by the question.
     """
 
-    documents = [f'Dokument {i+1}: Titel: {doc[0].metadata["title"]} \nScore: {doc[1]}, \nTekst: {doc[0].page_content}' for i, doc in enumerate(documents)]
+    documents = [f'Titel: {doc[0]} \nScore: {doc[1]}, \nTekst: {doc[2]}' for doc in documents]
 
     documents = "\n".join(documents)
 
@@ -41,9 +40,7 @@ def make_input_mistral_rag(question: str, documents:list) -> str:
     Dokumenterne:\n {documents}
     <|im_end|>
     <|im_start|>user
-    Mit spørgsmål er:{question}
-
-    Answer in the following language: Danish
+    Spørgsmålet er:{question}
     <|im_end|>
     <|im_start|>assistant
     """
@@ -70,7 +67,13 @@ if __name__ in "__main__":
     print("Loading mistral model")
     model = load_mistral()  
   
-    jsondata = load_loop()[:5] 
+    jsondata = load_loop()[:10] 
+
+    # load the unsplitted docs
+    full_documents = load_documents()
+
+    docs_dict = {doc.metadata["title"]: doc.page_content for doc in full_documents}
+
 
     output_data = []
     for question in tqdm(map_filter(jsondata, field = "question"), desc="Generating answers"):
@@ -80,19 +83,36 @@ if __name__ in "__main__":
             continue
 
         # get the top documents
-        documents = db.similarity_search_with_score(question, k=2)
+        retrieved_documents = db.similarity_search_with_score(question, k=5)
+        
+        # get the titles and scores of the retrieved documents
+        retrieved_titles = [(doc.metadata["title"], score) for doc, score in retrieved_documents]
+        
+        # get the full documents and keep the best score if the same document is retrieved multiple times
+        input_docs = []
+        for title, score in retrieved_titles:
+            if title not in [doc[0] for doc in input_docs]: # if the title is not already in the list
+                #save title, score and text
+                input_docs.append((title, score, docs_dict[title]))
+
+            else: # if the title is already in the list
+                # check if the current score is better than the one in the list
+                for i, doc in enumerate(input_docs):
+                    if doc[0] == title:
+                        if score < doc[1]:
+                            input_docs[i] = (title, score, docs_dict[title])
 
         # make the input
-        input_mdl = make_input_mistral_rag(question, documents)
+        input_mdl = make_input_mistral_rag(question, input_docs)
         
         data["question"] = question
         data["prompt"] = input_mdl
-        data["generated"] = model(data["prompt"], top_p=0.9)
+        data["answer"] = model(input_mdl, top_p = 0.9)
 
         output_data.append(data)
 
     # save to json
-    with open(output_dir / "mistral_rag_documents_in_user_english_inst.json", "w", encoding="utf-8") as f:
+    with open(output_dir / "mistral_rag.json", "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=4)
  
 
