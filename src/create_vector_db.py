@@ -1,18 +1,12 @@
 """
-Dev notes:
-- [X] Add text splitting maybe?
-- [X] Use dfm-sentence-encoder
-
-tokenizer = AutoTokenizer.from_pretrained("KennethEnevoldsen/dfm-sentence-encoder-medium-3")
-model = AutoModel.from_pretrained("KennethEnevoldsen/dfm-sentence-encoder-medium-3")
-
+This script creates a vector store from a set of documents and saves it to disk.
 """
 
 from pathlib import Path
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
-
+from transformers import AutoTokenizer
 from data_load import load_documents
 
 
@@ -28,9 +22,9 @@ def prep_embeddings():
 
     # Initialize an instance of HuggingFaceEmbeddings with the specified parameters
     embeddings = HuggingFaceEmbeddings(
-        model_name=model_name,     # Provide the pre-trained model's path
-        model_kwargs=model_kwargs, # Pass the model configuration options
-        encode_kwargs=encode_kwargs # Pass the encoding options
+        model_name = model_name,
+        model_kwargs = model_kwargs,
+        encode_kwargs = encode_kwargs
     )
 
     return embeddings
@@ -42,10 +36,14 @@ if __name__ in "__main__":
     # load data
     docs = load_documents()
 
+    # load tokenizer
+    tokenizer = AutoTokenizer.from_pretrained("KennethEnevoldsen/dfm-sentence-encoder-medium-3")
+
     # split text into smaller pieces
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 1000,
-        chunk_overlap  = 100
+    splitter = CharacterTextSplitter.from_huggingface_tokenizer(
+        tokenizer,
+        chunk_size=512,
+        chunk_overlap=50,
     )
     docs = splitter.split_documents(docs)
 
