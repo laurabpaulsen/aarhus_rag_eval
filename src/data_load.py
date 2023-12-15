@@ -42,10 +42,12 @@ def metadata_loop_document(record: dict, metadata: dict) -> dict:
     for key in ['nid', 'title','relative_url', 'concatenated_text']:
         metadata[key] = record.get(key)
 
+    metadata['source'] = "Loop internal documents"
+
     return metadata
 
 
-def load_documents(doc_path: Path = docs_path):
+def load_documents(doc_path: Path = docs_path) -> list[Document]:
     logging.info("Loading documents: start")
     loader = JSONLoader(doc_path,
                         jq_schema=".[] | select(.document_body != null)",
@@ -57,7 +59,7 @@ def load_documents(doc_path: Path = docs_path):
     html2text = PlainTextTransformer()
     docs_plaintext = html2text.transform_documents(documents)
     logging.info("Remove html: finished")
-    return documents
+    return docs_plaintext
 
 def soup_html(html: str) -> str:
     soup = BeautifulSoup(html)
