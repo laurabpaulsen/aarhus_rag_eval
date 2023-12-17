@@ -1,12 +1,13 @@
 from pathlib import Path
 from langchain.vectorstores import FAISS
-from create_vector_db import prep_embeddings # loading the embedding settings from create_vector_db.py to ensure consistency
+from create_vector_db import prep_embeddings
 from data_load import load_loop, map_filter
 import logging
 from tqdm import tqdm
 import json
 from generate_mistral import load_mistral
 from data_load import load_documents
+from data_retsinformation import load_retsinformation
 
 
 def make_input_mistral_rag(question: str, documents:list) -> str:
@@ -19,16 +20,6 @@ def make_input_mistral_rag(question: str, documents:list) -> str:
     
     Giv et kort svar og henvis gerne til et dokument hvis det er relevant for spørgsmålet.
     """
-    system_en = """
-    You are a language model that understands and speaks competent Danish. 
-    You answer briefly and precisely in Danish, and do your best even if you are unsure.
-    If you don't know the answer, that's okay, and then you just say so.
-    Your task is to help a municipal employee advise them to do their job right. 
-    The employee presents you with a number of documents that may be relevant to answer their question.
-
-    The documents will be presented to you first followed by the question.
-    """
-
     documents = [f'Titel: {doc[0]} \nScore: {doc[1]}, \nTekst: {doc[2]}' for doc in documents]
 
     documents = "\n".join(documents)
@@ -67,10 +58,13 @@ if __name__ in "__main__":
     print("Loading mistral model")
     model = load_mistral()  
   
-    jsondata = load_loop()[:10] 
+    jsondata = load_loop()
 
     # load the unsplitted docs
-    full_documents = load_documents()
+    full_documents_loop = load_documents()
+    full_documents_ri = load_retsinformation(paragraph=False)
+
+    full_documents = full_documents_loop + full_documents_ri
 
     docs_dict = {doc.metadata["title"]: doc.page_content for doc in full_documents}
 
@@ -87,6 +81,7 @@ if __name__ in "__main__":
         
         # get the titles and scores of the retrieved documents
         retrieved_titles = [(doc.metadata["title"], score) for doc, score in retrieved_documents]
+        #print(retrieved_titles)
         
         # get the full documents and keep the best score if the same document is retrieved multiple times
         input_docs = []
@@ -105,12 +100,25 @@ if __name__ in "__main__":
         # make the input
         input_mdl = make_input_mistral_rag(question, input_docs)
         
+        data["num_docs"] = len(input_docs)
+        data["title_docs"] = [doc[0] for doc in input_docs]
         data["question"] = question
         data["prompt"] = input_mdl
-        data["answer"] = model(input_mdl, top_p = 0.9)
+        #data["answer"] = model(input_mdl, top_p = 0.9)
 
         output_data.append(data)
+    
+    # for inspection of the input to the model
+    #for data in output_data:
+        #print(data["question"])
+        #print(data["num_docs"])
+        #data["title_docs"].sort()
+        #print(data["title_docs"])
+        #print(data["prompt"])
 
+        #print(f"the prompt is {len(data['prompt'])} tokens long")
+        #print("-----------------------")
+    
     # save to json
     with open(output_dir / "mistral_rag.json", "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=4)
