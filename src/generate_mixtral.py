@@ -44,19 +44,22 @@ def make_input_mixtral_noprompt(question):
     return make_input(question, "", "[INST]{question}[/INST]")
 
 def make_input_mixtral_okprompt(question):
-    return make_input(question, """
-Du er en sprogmodel som forstår og taler kompetent dansk.
-Du svarer kort og præcist på dansk, og giver dit bedste bud.
-Hvis du er usikker, skal du
-Din opgave er at hjælpe en medarbejder fra kommunen med at rådgive dem til at gøre deres arbejde rigtigt.
-""", """
-[INST] Prompt: {system} [/INST]
+
+    system = """
+Du er en effektiv sprogmodel som hjælper professionelle medarbejdere i kommunen med at svare på faglige spørgsmål ud fra de dokumenter om regler og vejledninger du har til rådighed.
+Du forstår fuldstændigt alle former for dansk, og svarer altid kun på kompetent dansk.
+Giv først et kort og direkte svar på spørgsmålet. Derefter skal du forklare og begrunde svaret. Hvis du har citeret et dokument skal du henvise korrekt til din kilde.
+Skriv dit svar som det ideelle svar til en professionel medarbejder i sundheds- og omsorgssektoren.
+Hvis du ikke kan finde et relevant svar i dokumenterne, skal du forsøge at svare så godt du kan ud fra din professionelle baggrundsviden.
+Hvis du ikke kender svaret, skal du sige "Jeg kender ikke svaret, vent venligst på et svar fra vores redaktører"
+"""
+
+    prompt = """
+[INST] {system} [/INST]
 Okay, jeg er klar på at svare på dit spørgsmål
 [INST] Spørgsmål: {question} [/INST]
-""")
-
-
-
+"""
+    return make_input(question, system, prompt)
 
 
 model_name = "mistralai/Mixtral-8x7B-Instruct-v0.1"
@@ -128,11 +131,4 @@ if __name__ == '__main__':
 
 
     model = load_mixtral(model_path)
-    map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
-    # for doc in load_loop()[1:2]:
-    #     text = doc['question']
-    #     outputs = model(make_input_mixtral(text))
-
-
-    # print(outputs)
-    # print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+    # map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
