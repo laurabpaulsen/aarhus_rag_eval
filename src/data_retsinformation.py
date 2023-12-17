@@ -60,7 +60,7 @@ def split_lov_by_kapitel(text: str, source: str) -> list[Document]:
             if paragraph_list:
                 # if we have some text to store (ie we're not at kapitel 1 or in index)
                 yield Document(page_content = f"""{afsnit}\n{kapitel}\n{paragraph_list}""",
-                               metadata = {'source': source, 'kapitel': kapitel, 'afsnit': afsnit})
+                               metadata = {'source': source, 'kapitel': kapitel, 'afsnit': afsnit, 'title': f"{source}: {kapitel}"})
                 paragraph_list = ""
 
             kapitel = f"{header}: {elem.strip()}"
@@ -74,7 +74,7 @@ def split_lov_by_kapitel(text: str, source: str) -> list[Document]:
 
     # finish off last kapitel
     yield Document(page_content = f"""{kapitel}\n{afsnit}\n{paragraph_list}""",
-                   metadata = {'source': source, 'kapitel': kapitel, 'afsnit': afsnit})
+                   metadata = {'source': source, 'kapitel': kapitel, 'afsnit': afsnit, 'title': f"{source}: {kapitel}"})
 
 
 def split_lov_by_paragraph(text: str, source: str) -> list[Document]:
@@ -95,7 +95,7 @@ def split_lov_by_paragraph(text: str, source: str) -> list[Document]:
             afsnit = f"{header}: {elem.strip()}"
         elif header[0] == "§":
             yield Document(page_content = f"""{afsnit}\n{kapitel}\n{header}: {elem.strip()}""",
-                           metadata = {'source': source, 'kapitel': kapitel, 'afsnit': afsnit, 'paragraph': header})
+                           metadata = {'source': source, 'kapitel': kapitel, 'afsnit': afsnit, 'paragraph': header, 'title': f"{source}: {header}"})
         else:
             logger.debug(f"Text segment categorizatioon failed for {header}: {elem}")
 
