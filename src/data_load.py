@@ -57,9 +57,9 @@ def load_documents(doc_path: Path = docs_path) -> list[Document]:
     logging.info("Loading documents: finished")
     logging.info("Remove html: start")
     html2text = PlainTextTransformer()
-    docs_plaintext = html2text.transform_documents(documents)
+    html2text.transform_documents(documents)
     logging.info("Remove html: finished")
-    return docs_plaintext
+    return documents
 
 def soup_html(html: str) -> str:
     soup = BeautifulSoup(html)
