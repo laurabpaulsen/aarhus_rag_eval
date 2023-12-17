@@ -8,6 +8,7 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
 from transformers import AutoTokenizer
 from data_load import load_documents
+from data_retsinformation import load_retsinformation
 
 
 def prep_embeddings():
@@ -33,8 +34,18 @@ if __name__ in "__main__":
     path = Path(__file__).parents[1] 
 
     outpath = path / "data" / "vector_db"
+    
     # load data
-    docs = load_documents()
+    docs_loop = load_documents()
+    print(type(docs_loop))
+
+    # load retsinformation
+    docs_ri = load_retsinformation(paragraph=False)
+    print(type(docs_ri))
+
+    # combine retsinformation and loop documents
+    docs = docs_loop + docs_ri
+
 
     # load tokenizer
     tokenizer = AutoTokenizer.from_pretrained("KennethEnevoldsen/dfm-sentence-encoder-medium-3")
@@ -45,6 +56,7 @@ if __name__ in "__main__":
         chunk_size=512,
         chunk_overlap=50,
     )
+
     docs = splitter.split_documents(docs)
 
     embeddings = prep_embeddings()
