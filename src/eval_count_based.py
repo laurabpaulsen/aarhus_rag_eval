@@ -37,7 +37,7 @@ def calculate_NER_overlap(text1:str, text2:str, nlp:object):
         return len(overlapping_ents) / total_ents
     else:
         return 0
-
+ 
 
 def get_all_scores(texts1:list, texts2:list, nlp, scorer) -> tuple:
     """
@@ -58,19 +58,26 @@ def get_all_scores(texts1:list, texts2:list, nlp, scorer) -> tuple:
     results = {}
 
     NER_overlap = []
-    ROUGE_l = []
-    ROUGE_1 = []
+    ROUGE_l_recall = []
+    ROUGE_1_recall = []
+    ROUGE_l_f1 = []
+    ROUGE_1_f1 = []
 
     for txt1, txt2 in zip(texts1, texts2):
         NER_overlap.append(calculate_NER_overlap(txt1, txt2, nlp))
         rouge = scorer.score(txt1, txt2)
-        ROUGE_l.append(rouge["rougeL"].recall)
-        ROUGE_1.append(rouge["rouge1"].recall)
+        
+        ROUGE_l_recall.append(rouge["rougeL"].recall)
+        ROUGE_1_recall.append(rouge["rouge1"].recall)
+        ROUGE_l_f1.append(rouge["rougeL"].fmeasure)
+        ROUGE_1_f1.append(rouge["rouge1"].fmeasure)
 
 
     results["ner_overlap"] = sum(NER_overlap) / len(NER_overlap)
-    results["rouge_l"] = sum(ROUGE_l) / len(ROUGE_l)
-    results["rouge_1"] = sum(ROUGE_1) / len(ROUGE_1)
+    results["rouge_l_recall"] = sum(ROUGE_l_recall) / len(ROUGE_l_recall)
+    results["rouge_1_recall"] = sum(ROUGE_1_recall) / len(ROUGE_1_recall)
+    results["rouge_l_precision"] = sum(ROUGE_l_f1) / len(ROUGE_l_f1)
+    results["rouge_1_precision"] = sum(ROUGE_1_f1) / len(ROUGE_1_f1)
 
     return results
 
@@ -96,7 +103,7 @@ if __name__ in "__main__":
     files = [f for f in generated_path.iterdir() if f.suffix == ".json"]
 
     loop_answers = [answer for answer in map_filter(jsondata, "response") if answer is not None]
-    loop_questions = [question for question in map_filter(jsondata, "question") if question is not None]
+    loop_questions = [question for question, answer in zip(map_filter(jsondata, "question"), map_filter(jsondata, "response")) if answer is not None]
 
     results = {}
     

@@ -1,0 +1,34 @@
+{
+    "mistral": {
+        "answer_to_answer_gen": {
+            "ner_overlap": 0.0,
+            "rouge_l_recall": 0.12248427889154727,
+            "rouge_1_recall": 0.20069547571249163,
+            "rouge_l_precision": 0.08980575241394044,
+            "rouge_1_precision": 0.1506308829243618
+        },
+        "question_to_answer_gen": {
+            "ner_overlap": 0.04,
+            "rouge_l_recall": 0.42762237762237765,
+            "rouge_1_recall": 0.577006327006327,
+            "rouge_l_precision": 0.1600631343455446,
+            "rouge_1_precision": 0.2252018473129246
+        }
+    },
+    "mistral_rag": {
+        "answer_to_answer_gen": {
+            "ner_overlap": 0.0,
+            "rouge_l_recall": 0.1779150729301533,
+            "rouge_1_recall": 0.29612598735596,
+            "rouge_l_precision": 0.11422536048012528,
+            "rouge_1_precision": 0.18888450616699762
+        },
+        "question_to_answer_gen": {
+            "ner_overlap": 0.047619047619047616,
+            "rouge_l_recall": 0.35592507492507486,
+            "rouge_1_recall": 0.4515041625041625,
+            "rouge_l_precision": 0.1443366196720523,
+            "rouge_1_precision": 0.19766454612479337
+        }
+    }
+}
