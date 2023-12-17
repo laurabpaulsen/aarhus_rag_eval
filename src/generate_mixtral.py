@@ -2,7 +2,13 @@
 #from ctransformers import AutoModelForCausalLM
 #import torch
 from pathlib import Path
-from data_load import load_loop, map_filter, map_questions
+from data_load import load_loop, map_filter, map_questions, load_documents
+from data_retsinformation import load_retsinformation
+from langchain.vectorstores import FAISS
+from create_vector_db import prep_embeddings
+
+from scipy.special import expit
+import numpy as np
 
 from llama_cpp import Llama
 
@@ -16,7 +22,8 @@ import json
 import logging
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-
+from functools import partial
+from pathlib import Path
 
 # def make_input_mixtral(question: str) -> str:
 
@@ -60,6 +67,52 @@ Okay, jeg er klar på at svare på dit spørgsmål
 [INST] Spørgsmål: {question} [/INST]
 """
     return make_input(question, system, prompt)
+
+def make_input_rag(question:str, db, full_docs:dict, k:int) -> str:
+    docs = retrieve_prep_documents(question, db, full_docs, k)
+    system = """
+Du er en effektiv sprogmodel som hjælper professionelle medarbejdere i kommunen med at svare på faglige spørgsmål ud fra de dokumenter om regler og vejledninger du har til rådighed.
+Du forstår fuldstændigt alle former for dansk, og svarer altid kun på kompetent dansk.
+Giv først et kort og direkte svar på spørgsmålet. Derefter skal du forklare og begrunde svaret. Hvis du har citeret et dokument skal du henvise korrekt til din kilde.
+Skriv dit svar som det ideelle svar til en professionel medarbejder i sundheds- og omsorgssektoren.
+Hvis du ikke kan finde et relevant svar i dokumenterne, skal du forsøge at svare så godt du kan ud fra din professionelle baggrundsviden.
+Hvis du ikke kender svaret, skal du sige "Jeg kender ikke svaret, vent venligst på et svar fra vores redaktører"
+"""
+    
+    return f"""[INST] {system} [/INST]
+Hvilke dokumenter er relevante for at besvare spørgsmålet?
+[INST] Dokumenter: {docs} [/INST]
+Okay, jeg er klar på at svare på dit spørgsmål
+[INST] Spørgsmål: {question} [/INST]
+"""
+
+def retrieve_prep_documents(question:str, db, full_docs:dict, k=5) -> list:
+    retrieved_documents = db.similarity_search_with_score(question, k=k)
+    
+    # get the titles and scores of the retrieved documents
+    retrieved_titles = [(doc.metadata["title"], score) for doc, score in retrieved_documents]
+
+    # get the full documents and keep the best score if the same document is retrieved multiple times
+    docs = []
+    for title, score in retrieved_titles:
+        if title not in [doc[0] for doc in docs]: # if the title is not already in the list
+            #save title, score and text
+            docs.append((title, score, full_docs[title]))
+
+        else: # if the title is already in the list
+            # check if the current score is better than the one in the list
+            for i, doc in enumerate(docs):
+                if doc[0] == title:
+                    if score < doc[1]:
+                        docs[i] = (title, score, full_docs[title])
+
+    
+    documents = [f'Titel: {doc[0]} \nScore: {expit(np.log(1/doc[1])):.4f}, \nTekst: {doc[2]}' for doc in docs]
+    documents = "\n".join(documents)
+    
+    return documents
+
+
 
 
 model_name = "mistralai/Mixtral-8x7B-Instruct-v0.1"
@@ -128,7 +181,44 @@ def map_questions_save_generations(model_name: str, model: object, make_input_fu
     logging.info(f"Finished generation for {model_name}")
 
 if __name__ == '__main__':
-
+    path = Path(__file__).parents[1]
 
     model = load_mixtral(model_path)
+    map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
+
+
+    RAG = True # change to false if you only want to run the above
+    if RAG:
+        # RAG model
+        db_path = path / "data" / "vector_db"
+        
+        embeddings = prep_embeddings()
+
+        # Load the vector store from disk
+        db = FAISS.load_local(db_path, embeddings)
+
+        # load documents for RAG model
+        full_docs_loop = load_documents()
+        full_docs_ri = load_retsinformation(paragraph=False)
+
+        full_docs = full_docs_loop + full_docs_ri
+        docs_dict = {doc.metadata["title"]: doc.page_content for doc in full_docs}
+
+        partial_make_input_rag = partial(
+            make_input_rag, 
+            db = db,
+            full_docs = docs_dict, 
+            k=5 # number of documents to retrieve
+            )
+        
+        map_questions_save_generations("mixtral-rag", model, partial_make_input_rag)
+
+
+    # for doc in load_loop()[1:2]:
+    #     text = doc['question']
+    #     outputs = model(make_input_mixtral(text))
+
+
+    # print(outputs)
+    # print(tokenizer.decode(outputs[0], skip_special_tokens=True))
     # map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
