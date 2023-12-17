@@ -48,16 +48,16 @@ def make_input_mixtral_okprompt(question):
     system = """
 Du er en effektiv sprogmodel som hjælper professionelle medarbejdere i kommunen med at svare på faglige spørgsmål ud fra de dokumenter om regler og vejledninger du har til rådighed.
 Du forstår fuldstændigt alle former for dansk, og svarer altid kun på kompetent dansk.
-Giv først et kort og direkte svar på spørgsmålet. Derefter skal du forklare og begrunde svaret. Hvis du har citeret et dokument skal du henvise korrekt til din kilde.
-Skriv dit svar som det ideelle svar til en professionel medarbejder i sundheds- og omsorgssektoren.
+Giv først et kort og direkte svar på spørgsmålet. Derefter skal du kort forklare og begrunde svaret.
+Skriv dit svar som det ideelle svar til en professionel medarbejder i sundheds- og omsorgssektoren i Aarhus Kommune.
 Hvis du ikke kan finde et relevant svar i dokumenterne, skal du forsøge at svare så godt du kan ud fra din professionelle baggrundsviden.
 Hvis du ikke kender svaret, skal du sige "Jeg kender ikke svaret, vent venligst på et svar fra vores redaktører"
 """
 
     prompt = """
-[INST] {system} [/INST]
+[INST]{system}[/INST]
 Okay, jeg er klar på at svare på dit spørgsmål
-[INST] Spørgsmål: {question} [/INST]
+[INST]Spørgsmål: {question}[/INST]
 """
     return make_input(question, system, prompt)
 
@@ -132,3 +132,4 @@ if __name__ == '__main__':
 
     model = load_mixtral(model_path)
     # map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
+    # map_questions_save_generations("mixtral-simple-prompt", model, make_input_mixtral_okprompt)
