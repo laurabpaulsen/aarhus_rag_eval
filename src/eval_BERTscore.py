@@ -35,10 +35,11 @@ def get_all_scores(texts1:list, texts2:list, savepath:Path = None) -> tuple:
     scores = pd.DataFrame.from_dict({"text1": texts1, "text2": texts2, "BERTscore_precision": P, "BERTscore_recall": R, "BERTscore_f1": F1})
         
     # overall results for all texts
-    results = {}
-    results["BERTscore_recall"] = scores["BERTscore_recall"].mean()
-    results["BERTscore_precision"] = scores["BERTscore_precision"].mean()
-    results["BERTscore_f1"] = scores["BERTscore_f1"].mean()
+    results = {
+        "BERTscore_precision": P.mean().item(),
+        "BERTscore_recall": R.mean().item(),
+        "BERTscore_f1": F1.mean().item()
+    }
 
 
     if savepath:
