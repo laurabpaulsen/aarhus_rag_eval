@@ -3,7 +3,9 @@ from data_load import load_loop, map_filter
 import json 
 import dacy
 from rouge_score import rouge_scorer
-from evaluate import load
+import jsonlines
+from tqdm import tqdm
+import pandas as pd
 
 def calculate_NER_overlap(text1:str, text2:str, nlp:object):
     """
@@ -18,7 +20,6 @@ def calculate_NER_overlap(text1:str, text2:str, nlp:object):
     nlp : object
         The spaCy model to use for NER tagging.
     """
-
 
     nlp1 = nlp(text1)
     nlp2 = nlp(text2)
@@ -39,7 +40,7 @@ def calculate_NER_overlap(text1:str, text2:str, nlp:object):
         return 0
  
 
-def get_all_scores(texts1:list, texts2:list, nlp, scorer) -> tuple:
+def get_all_scores(texts1:list, texts2:list, nlp, scorer, savepath:Path = None) -> tuple:
     """
     Returns the average NER overlap, ROUGE-L and ROUGE-1 for pairs of texts.
 
@@ -53,31 +54,31 @@ def get_all_scores(texts1:list, texts2:list, nlp, scorer) -> tuple:
         The spaCy model to use for NER tagging.
     scorer : object
         The rouge scorer.
+    savepath : Path
+        The path to save the individual scores to.
     """
-
+    # overall results for all texts
     results = {}
 
-    NER_overlap = []
-    ROUGE_l_recall = []
-    ROUGE_1_recall = []
-    ROUGE_l_f1 = []
-    ROUGE_1_f1 = []
+    # individual scores for each pair of texts
+    scores = pd.DataFrame(columns=["text1", "text2", "ner_overlap", "rouge_l_recall", "rouge_1_recall", "rouge_l_precision", "rouge_1_precision"])
 
-    for txt1, txt2 in zip(texts1, texts2):
-        NER_overlap.append(calculate_NER_overlap(txt1, txt2, nlp))
+    for txt1, txt2 in tqdm(zip(texts1, texts2)):
+        NER_overlap = calculate_NER_overlap(txt1, txt2, nlp)
         rouge = scorer.score(txt1, txt2)
+
+        tmp_dat = pd.DataFrame.from_dict({"text1": [txt1], "text2": [txt2], "ner_overlap": [NER_overlap], "rouge_l_recall": [rouge["rougeL"].recall], "rouge_1_recall": [rouge["rouge1"].recall], "rouge_l_precision": [rouge["rougeL"].precision], "rouge_1_precision": [rouge["rouge1"].precision]})
+        scores = pd.concat([scores, tmp_dat], ignore_index=True)
         
-        ROUGE_l_recall.append(rouge["rougeL"].recall)
-        ROUGE_1_recall.append(rouge["rouge1"].recall)
-        ROUGE_l_f1.append(rouge["rougeL"].fmeasure)
-        ROUGE_1_f1.append(rouge["rouge1"].fmeasure)
 
+    results["ner_overlap"] = scores["ner_overlap"].mean()
+    results["rouge_l_recall"] = scores["rouge_l_recall"].mean()
+    results["rouge_1_recall"] = scores["rouge_1_recall"].mean()
+    results["rouge_l_precision"] = scores["rouge_l_precision"].mean()
+    results["rouge_1_precision"] = scores["rouge_1_precision"].mean()
 
-    results["ner_overlap"] = sum(NER_overlap) / len(NER_overlap)
-    results["rouge_l_recall"] = sum(ROUGE_l_recall) / len(ROUGE_l_recall)
-    results["rouge_1_recall"] = sum(ROUGE_1_recall) / len(ROUGE_1_recall)
-    results["rouge_l_precision"] = sum(ROUGE_l_f1) / len(ROUGE_l_f1)
-    results["rouge_1_precision"] = sum(ROUGE_1_f1) / len(ROUGE_1_f1)
+    if savepath:
+        scores.to_csv(savepath)
 
     return results
 
@@ -92,6 +93,9 @@ if __name__ in "__main__":
 
     generated_path = root_dir / "data" / "generated"
 
+    # all files with generated answers
+    files = [f for f in generated_path.iterdir() if f.suffix == ".jsonl"]
+
     # model for NER overlap
     nlp = dacy.load("large")
     nlp.add_pipe("dacy/ner-fine-grained", config={"size": "large"})
@@ -99,32 +103,30 @@ if __name__ in "__main__":
     # model for ROUGE
     scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True)
 
-    # all files with generated answers
-    files = [f for f in generated_path.iterdir() if f.suffix == ".json"]
-
     loop_answers = [answer for answer in map_filter(jsondata, "response") if answer is not None]
     loop_questions = [question for question, answer in zip(map_filter(jsondata, "question"), map_filter(jsondata, "response")) if answer is not None]
 
     results = {}
     
     for gen_file in files:
-        with open(generated_path / gen_file, "r") as f:
-            generated_answers = json.load(f)
+        with jsonlines.open(generated_path / gen_file) as f:
+            # all generated answers
+            generated_answers = list(f)
 
         generated_answers = [answer["answer"] for answer in generated_answers]
 
         answer_to_answer_results = {
-            "answer_to_answer_gen": get_all_scores(loop_answers, generated_answers, nlp, scorer)
+            "answer_to_answer_gen": get_all_scores(loop_answers, generated_answers, nlp, scorer, results_path / f"{gen_file.stem}_answer_to_answer.csv")
             }
         results[gen_file.stem] = answer_to_answer_results
     
         question_to_answer_gen_results = {
-            "question_to_answer_gen": get_all_scores(loop_questions, generated_answers, nlp, scorer)
+            "question_to_answer_gen": get_all_scores(loop_questions, generated_answers, nlp, scorer, results_path / f"{gen_file.stem}_question_to_answer.csv")
         }
         results[gen_file.stem].update(question_to_answer_gen_results)
 
         #question_to_answer_loop_results = {
-        #    "question_to_answer_loop": get_all_scores(loop_questions, loop_answers, nlp, scorer)
+        #    "question_to_answer_loop": get_all_scores(loop_questions, loop_answers, nlp, scorer, results_path / f"{gen_file.stem}_question_to_answer_loop.csv")
         #}
 
     # save to json
