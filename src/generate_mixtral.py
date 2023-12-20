@@ -71,7 +71,7 @@ Okay, jeg er klar på at svare på dit spørgsmål
 def make_input_mixtral_askllm(system, score_name):
     prompt = """
     [INST]{system}[/INST]
-    {score_name}: """
+    {score_name} (0-10): """
     return prompt.format(system=system, score_name=score_name)
 
 def make_input_rag(question:str, db, full_docs:dict, k:int) -> str:
