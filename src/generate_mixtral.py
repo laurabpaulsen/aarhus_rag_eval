@@ -10,7 +10,7 @@ from create_vector_db import prep_embeddings
 from scipy.special import expit
 import numpy as np
 
-from llama_cpp import Llama
+from llama_cpp import Llama, LlamaGrammar
 
 import os
 #import torch
@@ -53,11 +53,10 @@ def make_input_mixtral_noprompt(question):
 def make_input_mixtral_okprompt(question):
 
     system = """
-Du er en effektiv sprogmodel som hjælper professionelle medarbejdere i kommunen med at svare på faglige spørgsmål ud fra de dokumenter om regler og vejledninger du har til rådighed.
+Du er en effektiv sprogmodel som hjælper professionelle medarbejdere i kommunen med at svare på faglige spørgsmål.
 Du forstår fuldstændigt alle former for dansk, og svarer altid kun på kompetent dansk.
 Giv først et kort og direkte svar på spørgsmålet. Derefter skal du kort forklare og begrunde svaret.
 Skriv dit svar som det ideelle svar til en professionel medarbejder i sundheds- og omsorgssektoren i Aarhus Kommune.
-Hvis du ikke kan finde et relevant svar i dokumenterne, skal du forsøge at svare så godt du kan ud fra din professionelle baggrundsviden.
 Hvis du ikke kender svaret, skal du sige "Jeg kender ikke svaret, vent venligst på et svar fra vores redaktører"
 """
 
@@ -131,7 +130,11 @@ model_path = root_path / "models" / "mixtral-8x7b-instruct-v0.1.Q4_K_M.gguf"
 output_dir = root_path / "generated"
 
 
-def load_mixtral(model_path: Path = model_path):
+def load_mixtral(model_path: Path = model_path, grammar = None):
+
+    if grammar:
+        with open(grammar) as f:
+            grammar = LlamaGrammar.from_string(f.read())
     logging.info(f"Loading model {model_path}")
     llm = Llama(
         model_path=str(model_path),  # Download the model file first
@@ -140,7 +143,7 @@ def load_mixtral(model_path: Path = model_path):
         n_gpu_layers=6         # The number of layers to offload to GPU, if you have GPU acceleration available
     )
     def text_only(prompt):
-        return llm(prompt, max_tokens = 4000)['choices'][0]['text']
+        return llm(prompt, max_tokens = 4000, grammar = grammar)['choices'][0]['text']
     return text_only
 
 
@@ -166,7 +169,7 @@ def load_mixtral(model_path: Path = model_path):
 def map_questions_save_generations(model_name: str, model: object, make_input_func: object):
     logging.info(f"Starting generation for {model_name}")
     # output_data = []
-    for i, question in tqdm(enumerate(map_questions(load_loop()[87:])), desc=f"Generating answers for {model_name}"):
+    for i, question in tqdm(enumerate(map_questions(load_loop())), desc=f"Generating answers for {model_name}"):
         data = {}
 
 
@@ -189,37 +192,37 @@ def map_questions_save_generations(model_name: str, model: object, make_input_fu
     logging.info(f"Finished generation for {model_name}")
 
 if __name__ == '__main__':
-    path = Path(__file__).parents[1]
+    # path = Path(__file__).parents[1]
 
     model = load_mixtral(model_path)
-    # map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
+    # # map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
 
 
-    RAG = True # change to false if you only want to run the above
-    if RAG:
-        # RAG model
-        db_path = path / "data" / "vector_db"
-        
-        embeddings = prep_embeddings()
+    # RAG = True # change to false if you only want to run the above
+    # if RAG:
+    #     # RAG model
+    #     db_path = path / "data" / "vector_db"
 
-        # Load the vector store from disk
-        db = FAISS.load_local(db_path, embeddings)
+    #     embeddings = prep_embeddings()
 
-        # load documents for RAG model
-        full_docs_loop = load_documents()
-        full_docs_ri = load_retsinformation(paragraph=False)
+    #     # Load the vector store from disk
+    #     db = FAISS.load_local(db_path, embeddings)
 
-        full_docs = full_docs_loop + full_docs_ri
-        docs_dict = {doc.metadata["title"]: doc.page_content for doc in full_docs}
+    #     # load documents for RAG model
+    #     full_docs_loop = load_documents()
+    #     full_docs_ri = load_retsinformation(paragraph=False)
 
-        partial_make_input_rag = partial(
-            make_input_rag, 
-            db = db,
-            full_docs = docs_dict, 
-            k=5 # number of documents to retrieve
-            )
-        
-        map_questions_save_generations("mixtral-rag", model, partial_make_input_rag)
+    #     full_docs = full_docs_loop + full_docs_ri
+    #     docs_dict = {doc.metadata["title"]: doc.page_content for doc in full_docs}
+
+    #     partial_make_input_rag = partial(
+    #         make_input_rag,
+    #         db = db,
+    #         full_docs = docs_dict,
+    #         k=5 # number of documents to retrieve
+    #         )
+
+    #     map_questions_save_generations("mixtral-rag", model, partial_make_input_rag)
 
 
     # for doc in load_loop()[1:2]:
@@ -230,4 +233,4 @@ if __name__ == '__main__':
     # print(outputs)
     # print(tokenizer.decode(outputs[0], skip_special_tokens=True))
     # map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
-    # map_questions_save_generations("mixtral-simple-prompt", model, make_input_mixtral_okprompt)
+    map_questions_save_generations("mixtral-simple-prompt", model, make_input_mixtral_okprompt)
