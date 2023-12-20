@@ -17,7 +17,7 @@ import os
 
 import subprocess
 from tqdm import tqdm
-import json
+import jsonlines
 
 import logging
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
@@ -67,6 +67,12 @@ Okay, jeg er klar på at svare på dit spørgsmål
 [INST]Spørgsmål: {question}[/INST]
 """
     return make_input(question, system, prompt)
+
+def make_input_mixtral_askllm(system, score_name):
+    prompt = """
+    [INST]{system}[/INST]
+    {score_name}: """
+    return prompt.format(system=system, score_name=score_name)
 
 def make_input_rag(question:str, db, full_docs:dict, k:int) -> str:
     docs = retrieve_prep_documents(question, db, full_docs, k)
@@ -129,7 +135,7 @@ def load_mixtral(model_path: Path = model_path):
     logging.info(f"Loading model {model_path}")
     llm = Llama(
         model_path=str(model_path),  # Download the model file first
-        n_ctx=2048,  # The max sequence length to use - note that longer sequence lengths require much more resources
+        n_ctx=32768,  # The max sequence length to use - note that longer sequence lengths require much more resources
         n_threads=8,            # The number of CPU threads to use, tailor to your system and the resulting performance
         n_gpu_layers=6         # The number of layers to offload to GPU, if you have GPU acceleration available
     )
@@ -160,7 +166,7 @@ def load_mixtral(model_path: Path = model_path):
 def map_questions_save_generations(model_name: str, model: object, make_input_func: object):
     logging.info(f"Starting generation for {model_name}")
     # output_data = []
-    for i, question in tqdm(enumerate(map_questions(load_loop())), desc=f"Generating answers for {model_name}"):
+    for i, question in tqdm(enumerate(map_questions(load_loop()[87:])), desc=f"Generating answers for {model_name}"):
         data = {}
 
 
@@ -175,8 +181,10 @@ def map_questions_save_generations(model_name: str, model: object, make_input_fu
         # output_data.append(data)
 
         # save to json
-        with open(output_dir / f"{model_name}.json", "a", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+        # with jsonlines.open('output.jsonl', mode='w') as writer:
+        #     writer.write(...)
+        with jsonlines.open(output_dir / f"{model_name}.json", "a") as f:
+            f.write(data)
 
     logging.info(f"Finished generation for {model_name}")
 
@@ -184,7 +192,7 @@ if __name__ == '__main__':
     path = Path(__file__).parents[1]
 
     model = load_mixtral(model_path)
-    map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
+    # map_questions_save_generations("mixtral-no-prompt", model, make_input_mixtral_noprompt)
 
 
     RAG = True # change to false if you only want to run the above
