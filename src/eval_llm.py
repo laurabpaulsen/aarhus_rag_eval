@@ -5,22 +5,28 @@ from data_load import load_loop, map_filter
 import jsonlines
 from pathlib import Path
 import pandas as pd
+import logging
+
+import re
+
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 
-def create_input_faithful(document, proposed, **kwargs):
+def create_input_faithful(documents = None, proposed = None, **kwargs):
     """
     Creates the input for the language model used when evaluating faithfulness.
     """
+    # logging.debug(f"Creating faithfullness prompt:{documents[:100]} {proposed[:100]}")
     return f"""
     Please give a faithfullness score indicating how well the following answer is supported by the following documents.
 
     The documents are:
-    {document}
+    {documents}
 
     The answer is:
     {proposed}
 
-    Please give a score between 0 and 10, where 0 means that the answer is not supported at all and 10 means that the answer is fully supported by the documents.
+    Please give a score between 0 and 10, where 0 means that the answer is not supported at all and 10 means that the answer is fully supported by the documents. Do not explain, just write the score.
     """
 
 
@@ -29,6 +35,10 @@ def create_input_correct(**kwargs):
 
 def create_input_informativeness(question, answer):
     pass
+
+def remove_document_scores(documents: str) -> str:
+    regex = "\nScore:[ ]*\d+(?:\.\d+)?,?[ ]*\n"
+    return re.compile(regex).sub("", documents)
 
 
 def get_scores(
@@ -51,6 +61,8 @@ def get_scores(
             "proposed": prop,
             "documents": d
         }
+
+        #logging.debug(f"Testing combination {tmp_data}")
 
         for input_func, score_name in zip(input_funcs, score_names):
             system = input_func(**tmp_data)
@@ -75,6 +87,9 @@ def extract_docs_from_prompt(prompt):
     documents = prompt[inst_loc:inst_end_loc]
     documents = documents.replace("[INST]", "").replace("[/INST]", "")
 
+    # filter out document scores from vector similarity
+    documents = remove_document_scores(documents)
+
     return documents
 
 if __name__ in "__main___":
@@ -84,16 +99,16 @@ if __name__ in "__main___":
     results_path = root_dir / "results"
     results_path.mkdir(parents=True, exist_ok=True)
 
-    generated_path = root_dir / "data" / "generated"
-    gen_file = "mixtral-rag_fake.jsonl"
+    generated_path = root_dir / "generated"
+    gen_file = generated_path / "mixtral-rag.jsonl"
 
     loop_answers = [answer for answer in map_filter(jsondata, "response") if answer is not None]
     loop_questions = [question for question, answer in zip(map_filter(jsondata, "question"), map_filter(jsondata, "response")) if answer is not None]
 
     # CHANGE TO MIXTRAL POTENTIALLY
-    model = load_mistral()
+    model = load_mixtral(grammar = root_dir / "score_0_10.gbnf")
 
-    with jsonlines.open(generated_path / gen_file) as f:
+    with jsonlines.open(gen_file) as f:
         generated_answers = list(f)
 
 
@@ -104,10 +119,10 @@ if __name__ in "__main___":
     # testing on the first - REMEBER TO REMOVE [0]
     get_scores(
         model = model, 
-        reference = loop_answers[0],
-        proposed = generated_answers[0],
-        question = loop_questions[0],
-        documents = documents[0],
+        reference = loop_answers[:3],
+        proposed = generated_answers[:3],
+        question = loop_questions[:3],
+        documents = documents[:3],
         input_funcs = [create_input_faithful],
         score_names = ["faithfulness"],
         savepath = results_path / f"{gen_file.stem}_llm.csv"
