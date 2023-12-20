@@ -62,7 +62,7 @@ def load_documents(doc_path: Path = docs_path) -> list[Document]:
     return documents
 
 def soup_html(html: str) -> str:
-    soup = BeautifulSoup(html)
+    soup = BeautifulSoup(html, features="html.parser")
     text = soup.get_text("\n")
     return re.compile("\n+").sub("\n", text)
 
