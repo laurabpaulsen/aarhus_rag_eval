@@ -16,7 +16,8 @@ def create_input_faithful(documents = None, proposed = None, **kwargs):
     """
     Creates the input for the language model used when evaluating faithfulness.
     """
-    assert documents is not None and proposed is not None
+    if not(documents is not None and proposed is not None):
+        return None
     # logging.debug(f"Creating faithfullness prompt:{documents[:100]} {proposed[:100]}")
     return f"""
     Please give a faithfulness score indicating how well the following answer is supported by the following documents.
@@ -32,10 +33,8 @@ def create_input_faithful(documents = None, proposed = None, **kwargs):
 
 
 def create_input_correctness(reference = None, proposed = None, **kwargs):
-    if proposed is not None and reference is None:
+    if not (reference is not None and proposed is not None):
         return None
-
-    assert reference is not None and proposed is not None
 
     return f"""
     Please give a correctness score indicating how good the proposed answer is given the true gold standard answer.
@@ -49,7 +48,8 @@ def create_input_correctness(reference = None, proposed = None, **kwargs):
     """
 
 def create_input_informativeness_proposed(question = None, proposed = None, **kwargs):
-    assert question is not None and proposed is not None
+    if not (question is not None and proposed is not None):
+        return None
 
     return f"""
     Please give an informativeness score indicating how well the answer is related to the question. Has everything in the question been answered, and is the entire answer working towards answering the question?
@@ -63,18 +63,20 @@ def create_input_informativeness_proposed(question = None, proposed = None, **kw
 
 
 def create_input_readability_proposed(proposed = None, **kwargs):
-    assert answer is not None
+    if not (proposed is not None):
+        return None
 
     return f"""
     Please give a readability score indicating the quality of the language used in the given answer. A good answer is short, precise, uses simple language to express its ideas, and is well structured to aid human understanding.
 
-    Answer: {answer}
+    Answer: {proposed}
 
     Please give a score between 0 and 10 where 0 means its very badly worded, and 10 is the easiest and best sentence one could ever read. Do not explain, just write the score.
     """
 
 def create_input_readability2_proposed(proposed = None, **kwargs):
-    assert proposed is not None
+    if not (proposed is not None):
+        return None
 
     return f"""
     Please give a language score indicating that the answer is in Danish, and it is written in correct danish. A good answer uses no other languages, and has no spelling mistakes or grammatical errors.
@@ -85,7 +87,8 @@ def create_input_readability2_proposed(proposed = None, **kwargs):
     """
 
 def create_input_knowledgeaccess(question = None, documents = None, **kwargs):
-    assert question is not None and documents is not None
+    if not (question is not None and documents is not None):
+        return None
 
     return f"""
     Please give a knowledge access score indicating how appropriate the knowledge given in the documents is for answering the question.
@@ -99,7 +102,8 @@ def create_input_knowledgeaccess(question = None, documents = None, **kwargs):
     """
 
 def create_input_alignment(proposed = None, **kwargs):
-    assert proposed is not None
+    if not (proposed is not None):
+        return None
 
     return f"""
     Please give an alignment score indicating how appropriate the language use in the answer is for a professional context in a Danish Municipality.
@@ -111,7 +115,8 @@ def create_input_alignment(proposed = None, **kwargs):
     """
 
 def create_input_metacognition(proposed = None, **kwargs):
-    assert proposed is not None
+    if not (proposed is not None):
+        return None
 
     return f"""
     Please give a metacognition score indicating how much confidence the answer has in itself. A high score means the answer is very certain.
@@ -156,7 +161,11 @@ def get_scores(
         #logging.debug(f"Testing combination {tmp_data}")
 
         for input_func, score_name in zip(input_funcs, score_names):
-            system = input_func(**tmp_data)
+            try:
+                system = input_func(**tmp_data)
+            except AssertionError as e:
+                print(e)
+                print(tmp_data)
             if system is None:
                 tmp_data[score_name] = None
                 continue
@@ -199,34 +208,65 @@ if __name__ in "__main___":
     loop_answers   = map_filter(jsondata, "response")
     loop_questions = map_filter(jsondata, "question")
 
-    # CHANGE TO MIXTRAL POTENTIALLY
     model = load_mixtral(grammar = root_dir / "score_0_10.gbnf")
+    # model = lambda x: "test"
 
-    with jsonlines.open(gen_file) as f:
-        generated_answers = list(f)
-
-
-    documents = [extract_docs_from_prompt(answer["prompt"]) for answer in generated_answers]
-    generated_answers = [answer["answer"] for answer in generated_answers]
+    # with jsonlines.open(gen_file) as f:
+    #     generated_answers = list(f)
 
 
-    # testing on the first - REMEBER TO REMOVE [0]
-    get_scores(
-        model = model, 
-        reference = loop_answers[75:78],
-        proposed = generated_answers[75:78],
-        question = loop_questions[75:78],
-        documents = documents[75:78],
-        input_funcs = [create_input_faithful, create_input_correctness, create_input_informativeness_proposed],
-        score_names = ["faithfulness", "correctness", "informativeness"],
-        # input_funcs = [create_input_metacognition],
-        # score_names = ["confidence"],
-        savepath = results_path / f"{gen_file.stem}_llm.csv"
+
+    ## evaluate RAG answers
+    # logging.info("Evaluating")
+    # documents = [extract_docs_from_prompt(answer["prompt"]) for answer in generated_answers]
+    #generated_answers = [answer["answer"] for answer in generated_answers]
+
+    # get_scores(
+    #     model = model,
+    #     reference = loop_answers,
+    #     proposed = generated_answers,
+    #     question = loop_questions,
+    #     documents = documents,
+    #     input_funcs = [create_input_faithful, create_input_correctness, create_input_informativeness_proposed, create_input_readability_proposed, create_input_readability2_proposed,
+    #                    create_input_knowledgeaccess, create_input_alignment, create_input_metacognition],
+    #     score_names = ["faithfulness", "correctness", "informativeness", "readability", "language",
+    #                    "knowledge", "alignment", "confidence"],
+    #     savepath = results_path / f"{gen_file.stem}_llm.csv"
+    #     )
+
+
+    ## evaluate no-prompt and simple-prompt answers
+
+    for name in ["mixtral-simple-prompt", "mixtral-no-prompt", "mixtral-rag"]:
+        logging.info(f"Starting evaluation of output from model {name}")
+        with jsonlines.open(generated_path / f"{name}.jsonl") as f:
+            proposed = list(f)
+
+        get_scores(
+            model = model,
+            reference = loop_answers,
+            proposed = [entry['answer'] for entry in proposed],
+            question = loop_questions,
+            documents = [None for _ in range(len(loop_answers))],
+        input_funcs = [create_input_correctness, create_input_informativeness_proposed, create_input_readability_proposed, create_input_readability2_proposed,
+                       create_input_alignment, create_input_metacognition],
+        score_names = ["correctness", "informativeness", "readability", "language",
+                       "alignment", "confidence"],
+        savepath = results_path / f"{name}_llm.csv"
         )
 
+    ## evaluate gold standard answers
 
-
-            
-
-
-
+    logging.info("Starting evaluation of gold standard answers")
+    name = "loop-goldstandard"
+    get_scores(
+        model = model,
+        reference = [None for _ in range(len(loop_answers))],
+        proposed = loop_answers,
+        question = loop_questions,
+        documents = [None for _ in range(len(loop_answers))],
+        input_funcs = [create_input_informativeness_proposed, create_input_readability_proposed, create_input_readability2_proposed,
+                       create_input_alignment, create_input_metacognition],
+        score_names = [ "informativeness", "readability", "language",
+                        "alignment", "confidence"],
+    )
