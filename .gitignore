@@ -167,3 +167,5 @@ generated/
 
 # ignore csv files in /results
 results/*.csv
+
+results/merged
