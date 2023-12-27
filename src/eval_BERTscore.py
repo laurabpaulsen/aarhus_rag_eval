@@ -78,7 +78,7 @@ if __name__ in "__main__":
 
         model_response = [answer["answer"] for answer in generated_answers]
         gold_to_response_results = {
-            "gold_to_response": get_all_scores(loop_answers, model_response, results_path / f"{gen_file}_gold_to_response_BERT.csv")
+            "gold_to_response": get_all_scores(loop_answers, model_response, scorer, results_path / f"{gen_file}_gold_to_response_BERT.csv")
             }
         results[gen_file] = gold_to_response_results
 
@@ -88,7 +88,7 @@ if __name__ in "__main__":
         results[gen_file].update(question_to_response_results)
 
         question_to_gold_results = {
-            "question_to_gold": get_all_scores(loop_questions, loop_answers, results_path / f"{gen_file}_question_to_gold_BERT.csv")
+            "question_to_gold": get_all_scores(loop_questions, loop_answers, scorer, results_path / f"{gen_file}_question_to_gold_BERT.csv")
         }
         results[gen_file].update(question_to_gold_results)
 
@@ -96,12 +96,12 @@ if __name__ in "__main__":
             documents = [extract_docs_from_prompt(answer["prompt"]) for answer in generated_answers]
 
             document_to_response_results = {
-                "document_to_response": get_all_scores(documents, model_response, results_path / f"{gen_file}_document_to_response_BERT.csv")
+                "document_to_response": get_all_scores(documents, model_response, scorer, results_path / f"{gen_file}_document_to_response_BERT.csv")
             }
             results[gen_file].update(document_to_response_results)
 
             document_to_gold_results = {
-                "document_to_gold": get_all_scores(documents, loop_answers, results_path / f"{gen_file}_document_to_gold_BERT.csv")
+                "document_to_gold": get_all_scores(documents, loop_answers, scorer, results_path / f"{gen_file}_document_to_gold_BERT.csv")
             }
             
             results[gen_file].update(document_to_gold_results)
