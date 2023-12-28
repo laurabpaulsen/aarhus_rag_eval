@@ -71,7 +71,7 @@ if __name__ in "__main__":
 
     results = {}
     
-    for gen_file in ["mixtral-no-prompt", "mixtral-simple-prompt", "mixtral-rag"]:
+    for gen_file in ["mixtral-rag", "mixtral-no-prompt", "mixtral-simple-prompt"]:
         with jsonlines.open(generated_path / f"{gen_file}.jsonl") as f:
             # all generated answers
             generated_answers = list(f)
