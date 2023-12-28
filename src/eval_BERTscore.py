@@ -68,7 +68,7 @@ if __name__ in "__main__":
     loop_answers = map_filter(jsondata, "response")
     loop_questions = map_filter(jsondata, "question")
 
-    scorer = BERTScorer(model_type = "xlnet-base-cased")
+    scorer = BERTScorer(model_type = "google/mt5-xl")
 
     results = {}
     
