@@ -164,4 +164,8 @@ cython_debug/
 data/
 models/
 generated/
-results/
+
+# ignore csv files in /results
+results/*.csv
+
+results/merged

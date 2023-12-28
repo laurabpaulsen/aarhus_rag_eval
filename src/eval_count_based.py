@@ -5,11 +5,34 @@ from rouge_score import rouge_scorer
 import jsonlines
 from tqdm import tqdm
 import pandas as pd
+import re
 
 from data_load import load_loop, map_filter
 from eval_readability import DacyTokenizer
 
-def calculate_NER_overlap(text1:str, text2:str, nlp:object):
+def remove_document_scores(documents: str) -> str:
+    regex = "\nScore:[ ]*\d+(?:\.\d+)?,?[ ]*\n"
+    return re.compile(regex).sub("", documents)
+
+
+def extract_docs_from_prompt(prompt):
+    """
+    Extracts the documents from the prompt.
+    """
+    # get location of second "[INST]"
+    inst_loc = prompt.find("[INST]", prompt.find("[INST]") + 1)
+    # get location of second "[/INST]"
+    inst_end_loc = prompt.find("[/INST]", prompt.find("[/INST]") + 1)
+    
+    documents = prompt[inst_loc:inst_end_loc]
+    documents = documents.replace("[INST]", "").replace("[/INST]", "")
+
+    # filter out document scores from vector similarity
+    documents = remove_document_scores(documents)
+
+    return documents
+
+def calculate_NER_overlap(reference:str, candidate:str, nlp:object):
     """
     Calculates the NER tag overlap between two texts based on the named entities.
 
@@ -23,26 +46,22 @@ def calculate_NER_overlap(text1:str, text2:str, nlp:object):
         The spaCy model to use for NER tagging.
     """
 
-    nlp1 = nlp(text1)
-    nlp2 = nlp(text2)
+    nlp1 = nlp(reference)
+    nlp2 = nlp(candidate)
 
-    entities1 = [ent.text for ent in nlp1.ents]
-    entities2 = [ent.text for ent in nlp2.ents]
+    entities_ref = [ent.text for ent in nlp1.ents]
+    entities_can = [ent.text for ent in nlp2.ents]
 
     # compare the entities
-    overlapping_ents = [entity for entity in entities1 if entity in entities2]
-    
-    # total number of entities
-    total_ents = len(entities1) + len(entities2)
+    intersection_ner = set(entities_ref).intersection(set(entities_can))
 
-    # percentage of overlapping entities
-    if total_ents != 0:
-        return len(overlapping_ents) / total_ents
-    else:
-        return 0
+    recall = len(intersection_ner) / max(len(entities_ref), 1)
+    precision = len(intersection_ner) / max(len(entities_can), 1)
+
+    return recall, precision
  
 
-def get_all_scores(texts1:list, texts2:list, nlp, scorer, savepath:Path = None) -> tuple:
+def get_all_scores(reference:list, candidate:list, nlp, scorer, savepath:Path = None) -> tuple:
     """
     Returns the average NER overlap, ROUGE-L and ROUGE-1 for pairs of texts.
 
@@ -63,24 +82,28 @@ def get_all_scores(texts1:list, texts2:list, nlp, scorer, savepath:Path = None) 
     results = {}
 
     # individual scores for each pair of texts
-    scores = pd.DataFrame(columns=["text1", "text2", "ner_overlap", "rouge_l_recall", "rouge_1_recall", "rouge_l_precision", "rouge_1_precision"])
+    scores = pd.DataFrame()
 
-    for txt1, txt2 in tqdm(zip(texts1, texts2)):
-        NER_overlap = calculate_NER_overlap(txt1, txt2, nlp)
-        rouge = scorer.score(txt1, txt2)
+    for ref, can in tqdm(zip(reference, candidate)):
+        # check that non of the texts are none
+        if ref is None or can is None:
+            continue
+        NER_recall, NER_precision = calculate_NER_overlap(ref, can, nlp)
+        rouge = scorer.score(ref, can)
 
-        tmp_dat = pd.DataFrame.from_dict({"text1": [txt1], "text2": [txt2], "ner_overlap": [NER_overlap], "rouge_l_recall": [rouge["rougeL"].recall], "rouge_1_recall": [rouge["rouge1"].recall], "rouge_l_precision": [rouge["rougeL"].precision], "rouge_1_precision": [rouge["rouge1"].precision]})
+        tmp_dat = pd.DataFrame.from_dict({"reference": [ref], "candidate": [can], "ner_recall": [NER_recall], "ner_precision": [NER_precision], "rouge_l": [rouge["rougeL"].recall], "rouge_1": [rouge["rouge1"].recall], "rouge_l_precision": [rouge["rougeL"].precision], "rouge_1_precision": [rouge["rouge1"].precision]})
         scores = pd.concat([scores, tmp_dat], ignore_index=True)
         
 
-    results["ner_overlap"] = scores["ner_overlap"].mean()
-    results["rouge_l_recall"] = scores["rouge_l_recall"].mean()
-    results["rouge_1_recall"] = scores["rouge_1_recall"].mean()
+    results["ner_recall"] = scores["ner_recall"].mean()
+    results["ner_precision"] = scores["ner_precision"].mean()
+    results["rouge_l"] = scores["rouge_l"].mean()
+    results["rouge_1"] = scores["rouge_1"].mean()
     results["rouge_l_precision"] = scores["rouge_l_precision"].mean()
     results["rouge_1_precision"] = scores["rouge_1_precision"].mean()
 
     if savepath:
-        scores.to_csv(savepath)
+        scores.to_csv(savepath, index=False)
 
     return results
 
@@ -93,7 +116,7 @@ if __name__ in "__main__":
     results_path = root_dir / "results"
     results_path.mkdir(parents=True, exist_ok=True)
 
-    generated_path = root_dir / "data" / "generated"
+    generated_path = root_dir / "generated"
 
     # all files with generated answers
     files = [f for f in generated_path.iterdir() if f.suffix == ".jsonl"]
@@ -105,8 +128,8 @@ if __name__ in "__main__":
     # model for ROUGE
     scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True, tokenizer = DacyTokenizer()
 
-    loop_answers = [answer for answer in map_filter(jsondata, "response") if answer is not None]
-    loop_questions = [question for question, answer in zip(map_filter(jsondata, "question"), map_filter(jsondata, "response")) if answer is not None]
+    loop_answers = map_filter(jsondata, "response")
+    loop_questions = map_filter(jsondata, "question")
 
     results = {}
     
@@ -115,21 +138,35 @@ if __name__ in "__main__":
             # all generated answers
             generated_answers = list(f)
 
-        generated_answers = [answer["answer"] for answer in generated_answers]
+        model_response = [answer["answer"] for answer in generated_answers]
 
-        answer_to_answer_results = {
-            "answer_to_answer_gen": get_all_scores(loop_answers, generated_answers, nlp, scorer, results_path / f"{gen_file.stem}_answer_to_answer.csv")
+        gold_to_response_results = {
+            "gold_to_response": get_all_scores(loop_answers, model_response, nlp, scorer, results_path / f"{gen_file.stem}_gold_to_response.csv")
             }
-        results[gen_file.stem] = answer_to_answer_results
-    
-        question_to_answer_gen_results = {
-            "question_to_answer_gen": get_all_scores(loop_questions, generated_answers, nlp, scorer, results_path / f"{gen_file.stem}_question_to_answer.csv")
-        }
-        results[gen_file.stem].update(question_to_answer_gen_results)
+        results[gen_file.stem] = gold_to_response_results
 
-        #question_to_answer_loop_results = {
-        #    "question_to_answer_loop": get_all_scores(loop_questions, loop_answers, nlp, scorer, results_path / f"{gen_file.stem}_question_to_answer_loop.csv")
-        #}
+        question_to_response_results = {
+            "question_to_response": get_all_scores(loop_questions, model_response, nlp, scorer, results_path / f"{gen_file.stem}_question_to_response.csv")
+        }
+        results[gen_file.stem].update(question_to_response_results)
+
+        question_to_gold_results = {
+            "question_to_gold": get_all_scores(loop_questions, loop_answers, nlp, scorer, results_path / f"{gen_file.stem}_question_to_gold.csv")
+        }
+        results[gen_file.stem].update(question_to_gold_results)
+
+        if "rag" in gen_file.stem:
+            documents = [extract_docs_from_prompt(answer["prompt"]) for answer in generated_answers]
+
+            document_to_response_results = {
+                "document_to_response": get_all_scores(documents, model_response, nlp, scorer, results_path / f"{gen_file.stem}_document_to_response.csv")
+            }
+            results[gen_file.stem].update(document_to_response_results)
+
+            document_to_gold_results = {
+                "document_to_gold": get_all_scores(documents, loop_answers, nlp, scorer, results_path / f"{gen_file.stem}_document_to_gold.csv")
+            }
+            results[gen_file.stem].update(document_to_gold_results)
 
     # save to json
     with open(results_path / "count_based.json", "w", encoding="utf-8") as json_file:
