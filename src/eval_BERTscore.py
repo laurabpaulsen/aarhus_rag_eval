@@ -56,8 +56,9 @@ def get_all_scores(reference:list, candidate:list, scorer, savepath:Path = None)
 
 if __name__ in "__main__":
 
-    jsondata = load_loop()
+
     root_dir = Path(__file__).parents[1]
+    jsondata = load_loop(root_dir / "data" /"loop_q_and_a_w_ref_text_meta.jsonl")
 
     results_path = root_dir / "results"
     results_path.mkdir(parents=True, exist_ok=True)
