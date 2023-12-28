@@ -1,11 +1,13 @@
 from pathlib import Path
-from data_load import load_loop, map_filter
 import json 
 import dacy
 from rouge_score import rouge_scorer
 import jsonlines
 from tqdm import tqdm
 import pandas as pd
+
+from data_load import load_loop, map_filter
+from eval_readability import DacyTokenizer
 
 def calculate_NER_overlap(text1:str, text2:str, nlp:object):
     """
@@ -101,7 +103,7 @@ if __name__ in "__main__":
     nlp.add_pipe("dacy/ner-fine-grained", config={"size": "large"})
 
     # model for ROUGE
-    scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True)
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True, tokenizer = DacyTokenizer()
 
     loop_answers = [answer for answer in map_filter(jsondata, "response") if answer is not None]
     loop_questions = [question for question, answer in zip(map_filter(jsondata, "question"), map_filter(jsondata, "response")) if answer is not None]
