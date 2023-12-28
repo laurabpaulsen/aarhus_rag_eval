@@ -84,7 +84,7 @@ if __name__ in "__main__":
         results[gen_file] = gold_to_response_results
 
         question_to_response_results = {
-            "question_to_response": get_all_scores(loop_questions, model_response, results_path / f"{gen_file}_question_to_response_BERT.csv")
+            "question_to_response": get_all_scores(loop_questions, model_response, scorer results_path / f"{gen_file}_question_to_response_BERT.csv")
         }
         results[gen_file].update(question_to_response_results)
 
