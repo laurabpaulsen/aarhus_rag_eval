@@ -150,11 +150,6 @@ if __name__ in "__main__":
         }
         results[gen_file.stem].update(question_to_response_results)
 
-        question_to_gold_results = {
-            "question_to_gold": get_all_scores(loop_questions, loop_answers, nlp, scorer, results_path / f"{gen_file.stem}_question_to_gold.csv")
-        }
-        results[gen_file.stem].update(question_to_gold_results)
-
         if "rag" in gen_file.stem:
             documents = [extract_docs_from_prompt(answer["prompt"]) for answer in generated_answers]
 
@@ -168,6 +163,15 @@ if __name__ in "__main__":
             }
             results[gen_file.stem].update(document_to_gold_results)
 
+            document_to_question_results = {
+                "document_to_question": get_all_scores(documents, loop_questions, nlp, scorer, results_path / f"{gen_file.stem}_document_to_question.csv")
+            }
+    
+    question_to_gold_results = {
+        "question_to_gold": get_all_scores(loop_questions, loop_answers, nlp, scorer, results_path / f"baseline_question_to_gold.csv")
+    }
+    results["baseline"].update(question_to_gold_results)
+    
     # save to json
     with open(results_path / "count_based.json", "w", encoding="utf-8") as json_file:
         json.dump(results, json_file, ensure_ascii=False, indent=4)
