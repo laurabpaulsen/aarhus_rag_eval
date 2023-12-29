@@ -31,7 +31,7 @@ if __name__ in "__main__":
                 if i == 0:
                     merged = dfs[i]
                 else:
-                    merged = merged.merge(dfs[i], on=["candidate", "reference"])
+                    merged = merged.merge(dfs[i], on=["candidate", "reference"], how="outer")
             
             filename = f"{model}_{compare}.csv"
             merged.to_csv(outpath / filename, index=False)
