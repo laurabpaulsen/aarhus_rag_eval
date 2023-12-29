@@ -16,7 +16,7 @@ class DacyTokenizer(tokenizers.Tokenizer):
         self.nlp = dacy.load("large")
 
     def tokenize(self, text):
-        return [x for x in self.nlp.tokenizer(text)]
+        return [str(x) for x in self.nlp.tokenizer(text)]
 
 
 def add_ending_punctuation(text: str, punct: str = ".!?") -> str:
@@ -40,7 +40,7 @@ def lix(text, tokens):
 
 def spellcheck(tokens, spellchecker = aspell.Speller(("lang", "da"), ("run-together", "true"))):
     spellcheck_results = [spellchecker.check(str(t)) for t in tokens if t] # dont test empty strings
-    n_spelling_errors = len([t for t in spellcheck_results if not t]) # how many are true
+    n_spelling_errors = len([t for t in spellcheck_results if t]) # how many are true
     return n_spelling_errors / len(spellcheck_results)
 
 

@@ -126,7 +126,7 @@ if __name__ in "__main__":
     nlp.add_pipe("dacy/ner-fine-grained", config={"size": "large"})
 
     # model for ROUGE
-    scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True, tokenizer = DacyTokenizer()
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True, tokenizer = DacyTokenizer())
 
     loop_answers = map_filter(jsondata, "response")
     loop_questions = map_filter(jsondata, "question")
@@ -134,7 +134,7 @@ if __name__ in "__main__":
     results = {}
     
     for gen_file in files:
-        with jsonlines.open(generated_path / gen_file) as f:
+        with jsonlines.open(gen_file) as f:
             # all generated answers
             generated_answers = list(f)
 
