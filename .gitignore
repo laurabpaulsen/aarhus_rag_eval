@@ -167,5 +167,7 @@ generated/
 
 # ignore csv files in /results
 results/*.csv
+# this one results file has been scrubbed of text data
+!results/merged_eval_results.csv
 
 results/merged
