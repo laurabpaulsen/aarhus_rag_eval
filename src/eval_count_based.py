@@ -170,7 +170,7 @@ if __name__ in "__main__":
     question_to_gold_results = {
         "question_to_gold": get_all_scores(loop_questions, loop_answers, nlp, scorer, results_path / f"baseline_question_to_gold.csv")
     }
-    results["baseline"].update(question_to_gold_results)
+    results["baseline"] = question_to_gold_results
     
     # save to json
     with open(results_path / "count_based.json", "w", encoding="utf-8") as json_file:
