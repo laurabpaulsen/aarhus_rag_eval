@@ -2,7 +2,7 @@ library(tidyverse)
 library(tidyjson)
 
 
-llm_results <- list.files("results", pattern="*.csv", full.names = TRUE) %>%
+llm_results <- list.files("results", pattern="*llm.csv", full.names = TRUE) %>%
   map(~read_csv(.x) %>% mutate(model = str_extract(.x, "results/(.*)_llm.csv", group=1))) %>%
   map(mutate, i = 1:n()) %>%
   bind_rows() %>%
@@ -20,12 +20,12 @@ countbased_results <- list.files("results/merged/", full.names = TRUE) %>%
     return(d)
   }) %>%
   bind_rows() %>%
-  mutate(name = case_when(comparison == "gold_to_response" ~ "correctness",
+  mutate(name = case_when(comparison == "gold_to_response" ~ "correctness_response",
                           comparison == "question_to_gold" ~ "informativeness_gold",
                           comparison == "question_to_response" ~ "informativeness_response",
-                          comparison == "document_to_gold" ~ "faithfulness_gold",
+                          comparison == "document_to_question" ~ "knowledge_response",
                           comparison == "document_to_response" ~ "faithfulness_response")) %>%
-  filter(name != "faithfulness_gold") %>% ## this one didnt make sense after all
+  #filter(name != "faithfulness_gold") %>% ## this one didnt make sense after all
   separate_wider_delim(comparison, delim = "_to_", names = c("reference_name", "candidate_name"))
 
 
@@ -48,18 +48,21 @@ x2 <- pivot_longer(x, cols = c(starts_with("ner"), starts_with("rouge"), starts_
               values_from = value)
 
 
- ## x3 <- x2 %>%
- ##  dplyr::group_by(model, question, gold, model_response, document, measure) %>%
- ##  dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
- ##   dplyr::filter(n > 1L)
+## x3 <- x2 %>%
+##   dplyr::group_by(model, question, gold, model_response, document, measure) %>%
+##   dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
+##   dplyr::filter(n > 1L)
+
 
 merged_results <- llm_results %>%
   select(-documents) %>%
-  left_join(select(x2, model, question, gold, starts_with("informativeness_gold")), by = join_by(model, question, gold), keep=FALSE) %>%
-  left_join(select(x2, model, gold, model_response, starts_with("correctness")), by = join_by(model, gold, model_response), keep=FALSE) %>%
-  left_join(select(x2, model, question, model_response, starts_with("informativeness_response")), by = join_by(model, question, model_response), keep=FALSE) %>%
-  # left_join(select(x2, model, gold, starts_with("faithfulness_gold")), by = join_by(model, gold), keep=FALSE) %>%
-  left_join(select(x2, model, model_response, document, starts_with("faithfulness_response")) %>% filter(model == "mixtral-rag", complete.cases(.)) %>% distinct(), by = join_by(model, model_response), keep=FALSE)# %>%
+  left_join(select(x2, model, gold, model_response, starts_with("correctness_response")), by = join_by(model, gold, model_response), keep=FALSE, na_matches='never') %>%
+  left_join(select(x2, question, gold, starts_with("informativeness_gold")), by = join_by(question, gold), keep=FALSE, na_matches='never') %>%
+  left_join(select(x2, model, question, model_response, starts_with("informativeness_response")), by = join_by(model, question, model_response), keep=FALSE, na_matches='never') %>%
+  left_join(select(x2, model, document, question, starts_with("knowledge_response")) %>% filter(model == "mixtral-rag", complete.cases(.)), by = join_by(model, question), keep=FALSE, na_matches='never') %>%
+  left_join(select(x2, model, model_response, starts_with("faithfulness_response")) %>% filter(model == "mixtral-rag", complete.cases(.)) %>% distinct(), by = join_by(model, model_response), keep=FALSE, na_matches='never')# %>%
+# left_join(select(x2, model, gold, starts_with("faithfulness_gold")), by = join_by(model, gold), keep=FALSE, na_matches='never') %>%
+
   #pivot_wider(-model, id_cols = model)
 
 
@@ -82,7 +85,7 @@ final_results <- left_join(merged_results, readability_results) %>%
 
 
 # save a "record of results"
-select(final_results, model, id, !c(question, gold, model_response))%>%
+select(final_results, model, id, !c(question, gold, model_response, document))%>%
   write_csv( "results/merged_eval_results.csv")
 
 # also save something for us to look at
