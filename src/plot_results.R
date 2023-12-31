@@ -74,7 +74,7 @@ countbased <- d %>%
 ## ecdf
 llm_eval_scores %>%
   ggplot() +
-  stat_ecdf(aes(value, color = model, linetype = fct_rev(is_llm))) +
+  stat_ecdf(aes(value, color = model, linetype = fct_rev(is_llm)), size = 1.5) +
   #scale_x_continuous(breaks = c(0.5, seq(0,10))) +
   facet_wrap(~name, scales="free") +
   theme_bw() +
