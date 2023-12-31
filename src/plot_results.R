@@ -19,7 +19,7 @@ d <- read_csv("results/merged_eval_results.csv") %>%
   # rescale to 0-10 scale
   #sample_n(10) %>%
   #mutate(lix_response = lix_response / max(lix_response) * 10) %>%
-  mutate(spellcheck_response = spellcheck_response * 100)
+  mutate(spellcheck_response = spellcheck_response * 100) %>%
   calc_ner_f1("correctness_response", "informativeness_gold",
               "informativeness_response", "knowledge_response",
               "faithfulness_response")
@@ -89,7 +89,7 @@ llm_eval_scores %>%
   labs(fill = "Source", color = "Source", linetype = "Type",
        x = "", y = "")
 
-ggsave("plots/results_lexical_semantic.png")
+ggsave("plots/results_llmeval_autoread.png")
 
 ## ## histogram of
 ## ## eval scores
