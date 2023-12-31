@@ -26,6 +26,8 @@ d <- read_csv("results/merged_eval_results.csv") %>%
 
 
 
+
+
 llm_eval_scores <- d %>%
   select(-starts_with("informativeness_"), -starts_with("faithfulness_"),
          -starts_with("correctness_"), -starts_with("knowledge")) %>%
@@ -50,6 +52,12 @@ countbased <- d %>%
   mutate(origin = str_detect(name, "gold"),
          model = ifelse(origin, "human-gold-standard", model))
 
+
+countbased %>%
+  filter(str_detect(name, "ner_f1")) %>%
+  group_by(model, name) %>%
+  summarise(mean = mean(value),
+            sd = sd(value))
 
 ## histogram of
 ## ## llm eval scores
