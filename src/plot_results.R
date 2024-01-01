@@ -24,6 +24,25 @@ d <- read_csv("results/merged_eval_results.csv") %>%
               "informativeness_response", "knowledge_response",
               "faithfulness_response")
 
+###
+## d %>%
+##   group_by(model) %>%
+##   summarize(k_m = mean(knowledge), k_s = sd(knowledge),
+##             f_m = mean(faithfulness), f_s = sd(faithfulness))
+
+
+## d %>%
+##   group_by(model) %>%
+##   summarise(fa_rouge1_mean = mean(knowledge_response_rouge_1_precision, na.rm = T),
+##             fa_rouge1_sd = sd(knowledge_response_rouge_1_precision, na.rm = T),
+##             fa_rougel_mean = mean(knowledge_response_rouge_l_precision, na.rm = T),
+##             fa_rougel_sd = sd(knowledge_response_rouge_l_precision, na.rm = T))
+
+
+## filter(d, model == "mixtral-rag", id == "48") %>%
+##   select(starts_with("knowledge_response")) %>%
+##   unlist() %>%
+##   round(2)
 
 
 
@@ -44,6 +63,10 @@ countbased <- d %>%
   select(model, id,
          starts_with("informativeness_"), starts_with("faithfulness_"),
          starts_with("correctness_"), starts_with("knowledge")) %>%
+  mutate(knowledge_response_rouge_1 = knowledge_response_rouge_1_precision,
+         knowledge_response_rouge_l = knowledge_response_rouge_l_precision,
+         faithfulness_response_rouge_1 = faithfulness_response_rouge_1_precision,
+         faithfulness_response_rouge_l = faithfulness_response_rouge_l_precision) %>%
   select(model, id,
          ends_with("BERTscore_f1"), ends_with("rouge_l"),
          ends_with("rouge_1"), ends_with("ner_f1")) %>%
@@ -143,7 +166,7 @@ countbased %>%
   geom_density(aes(value, color = model), size=1.5) +
   #geom_histogram(aes(value, fill=model), bins = 11, position=position_dodge(width=0.9))+
     #stat_ecdf(aes(value, color = model)) +
-  facet_grid(goal ~ score, scale="free_y") +
+  facet_grid(score ~ goal, scales = "free_y") +
   theme_bw() +
   scale_color_viridis_d() +
   theme(axis.text.y = element_blank(),
