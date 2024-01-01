@@ -67,7 +67,7 @@ merged_results <- llm_results %>%
   left_join(select(x2, question, gold, starts_with("informativeness_gold")), by = join_by(question, gold), keep=FALSE, na_matches='never') %>%
   left_join(select(x2, model, question, model_response, starts_with("informativeness_response")), by = join_by(model, question, model_response), keep=FALSE, na_matches='never') %>%
   left_join(select(x2, model, document, question, starts_with("knowledge_response")) %>% filter(model == "mixtral-rag", complete.cases(.)), by = join_by(model, question), keep=FALSE, na_matches='never') %>%
-  left_join(select(x2, model, model_response, starts_with("faithfulness_response")) %>% filter(model == "mixtral-rag", complete.cases(.)) %>% distinct(), by = join_by(model, model_response), keep=FALSE, na_matches='never')# %>%
+  left_join(select(x2, model, model_response, starts_with("faithfulness_response")) %>% filter(model == "mixtral-rag", complete.cases(faithfulness_response_rouge_l)) %>% distinct(), by = join_by(model, model_response), keep=FALSE, na_matches='never')# %>%
 # left_join(select(x2, model, gold, starts_with("faithfulness_gold")), by = join_by(model, gold), keep=FALSE, na_matches='never') %>%
 
   #pivot_wider(-model, id_cols = model)
