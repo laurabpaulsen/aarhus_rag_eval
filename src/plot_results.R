@@ -30,7 +30,7 @@ d <- read_csv("results/merged_eval_results.csv") %>%
 
 llm_eval_scores <- d %>%
   select(-starts_with("informativeness_"), -starts_with("faithfulness_"),
-         -starts_with("correctness_"), -starts_with("knowledge")) %>%
+         -starts_with("correctness_"), -starts_with("knowledge_")) %>%
   pivot_longer(!c(model, id)) %>%
   #filter(name == "correctness") %>%
   filter(!is.na(value)) %>%
@@ -59,9 +59,17 @@ countbased %>%
   summarise(mean = mean(value),
             sd = sd(value))
 
+## countbased %>%
+##   filter(str_detect(name, "ner_f1")) %>%
+##   filter(value > 0) %>%
+##   group_by(model, name) %>%
+##   summarise(mean = mean(value),
+##             sd = sd(value))
+
 ## histogram of
-## ## llm eval scores
+## llm eval scores
 ## llm_eval_scores %>%
+##   filter(name != "spellcheck", name != "lix") %>%
 ##   #group_by(model) %>%
 ##   #filter(id < 10) %>%
 ##   #summarise(across(!id, \(x) mean_se(na.exclude(x)))) %>%

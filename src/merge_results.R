@@ -2,12 +2,19 @@ library(tidyverse)
 library(tidyjson)
 
 
+
+llm_docs <- read_csv("results/mixtral-rag_llm_documents.csv") %>%
+  mutate(i = 1:n(),
+         model = "mixtral-rag") %>%
+  select(model, i, faithfulness, knowledge)
+
 llm_results <- list.files("results", pattern="*llm.csv", full.names = TRUE) %>%
   map(~read_csv(.x) %>% mutate(model = str_extract(.x, "results/(.*)_llm.csv", group=1))) %>%
   map(mutate, i = 1:n()) %>%
   bind_rows() %>%
   rename(gold = reference,
-         model_response = proposed)
+         model_response = proposed) %>%
+  left_join(llm_docs)
 
 
 
