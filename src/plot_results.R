@@ -61,7 +61,7 @@ llm_eval_scores <- d %>%
   pivot_longer(!c(model, id)) %>%
   #filter(name == "correctness") %>%
   filter(!is.na(value)) %>%
-  mutate(is_llm = ifelse(str_detect(name, "response"),
+  mutate(is_llm = ifelse(str_detect(name, "response") | str_detect(name, "gold"),
                          "Automatic Readability",
                          "LLM Eval")) %>%
   mutate(origin = str_detect(name, "gold"),
