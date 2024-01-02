@@ -85,9 +85,17 @@ readability_results <-
   as_tibble() %>%
   pivot_wider(names_from = "name", values_from = value) %>%
   select(-document.id) %>%
-  rename(i = array.index, lix_response = lix_answer, spellcheck_response = spellcheck_answer)
+  rename(i = array.index, lix_response = lix_answer, spellcheck_response = spellcheck_answer) %>%
+  mutate(model = ifelse(model == "gold", "human-gold-standard", model))
 
-final_results <- left_join(merged_results, readability_results) %>%
+read_1 <- filter(readability_results, model != "human-gold-standard")
+read_2 <- filter(readability_results, model == "human-gold-standard") %>%
+  rename(lix_gold = lix_response, spellcheck_gold = spellcheck_response) %>%
+  select(-model)
+
+readability_final <- left_join(read_1, read_2, by = join_by(i))
+
+final_results <- left_join(merged_results, readability_final) %>%
   rename(id = i)
 
 
