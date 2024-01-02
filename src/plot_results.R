@@ -127,7 +127,7 @@ llm_eval_scores %>%
   #scale_x_continuous(breaks = c(0.5, seq(0,10))) +
   facet_wrap(~name, scales="free") +
   theme_bw() +
-  scale_color_viridis_d(begin=1/3) +
+  scale_color_viridis_d() +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
         legend.position = "bottom",
