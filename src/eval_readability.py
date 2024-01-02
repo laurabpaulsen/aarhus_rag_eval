@@ -8,8 +8,12 @@ import jsonlines
 import json
 import aspell
 
+from data_load import load_loop_jsonl, map_filter
+
 import logging
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+
+logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
+
 
 class DacyTokenizer(tokenizers.Tokenizer):
     def __init__(self):
@@ -24,7 +28,8 @@ def add_ending_punctuation(text: str, punct: str = ".!?") -> str:
         text += "."
     return text
 
-def tokenize(text: str, tokenizer = DacyTokenizer()) -> list[str]:
+
+def tokenize(text: str, tokenizer=DacyTokenizer()) -> list[str]:
     tokens = tokenizer.tokenize(text)
     return tokens
 
@@ -38,9 +43,13 @@ def lix(text, tokens):
     return lix
 
 
-def spellcheck(tokens, spellchecker = aspell.Speller(("lang", "da"), ("run-together", "true"))):
-    spellcheck_results = [spellchecker.check(str(t)) for t in tokens if t] # dont test empty strings
-    n_spelling_errors = len([t for t in spellcheck_results if t]) # how many are true
+def spellcheck(
+    tokens, spellchecker=aspell.Speller(("lang", "da"), ("run-together", "true"))
+):
+    spellcheck_results = [
+        spellchecker.check(str(t)) for t in tokens if t
+    ]  # dont test empty strings
+    n_spelling_errors = len([t for t in spellcheck_results if t])  # how many are true
     return n_spelling_errors / len(spellcheck_results)
 
 
@@ -62,25 +71,40 @@ if __name__ in "__main__":
         with jsonlines.open(gen_file) as f:
             logging.info(f"Tokenizing answers from {str(gen_file)}")
             # all generated answers
-            generated_answers = [add_ending_punctuation(answer["answer"]) for answer in f]
+            generated_answers = [
+                add_ending_punctuation(answer["answer"]) for answer in f
+            ]
             tokens = [tokenize(text) for text in tqdm(generated_answers)]
-
 
         logging.info(f"Calculating LIX for {str(gen_file)}")
 
         lix_results = {
-            "lix_answer": [lix(text,token) for text,token in tqdm(zip(generated_answers, tokens))]
-            }
+            "lix_answer": [
+                lix(text, token) for text, token in tqdm(zip(generated_answers, tokens))
+            ]
+        }
         results[gen_file.stem] = lix_results
-
 
         logging.info(f"Counting spelling mistakes for {str(gen_file)}")
 
         spellcheck_results = {
             "spellcheck_answer": [spellcheck(token) for token in tqdm(tokens)]
-            }
+        }
         results[gen_file.stem].update(spellcheck_results)
 
+    # also do readability for gold-standard
+    loop_data = load_loop_jsonl(
+        root_dir / "data" / "loop_q_and_a_w_ref_text_meta.jsonl"
+    )
+    gold_answers = map_filter(loop_data, "response")
+    tokens = [tokenize(text) for text in tqdm(gold_answers)]
+    logging.info("Calculating LIX and spellcheck for gold")
+    results["gold"] = {
+        "lix_answer": [
+            lix(text, token) for text, token in tqdm(zip(gold_answers, tokens))
+        ],
+        "spellcheck_answer": [spellcheck(token) for token in tqdm(tokens)],
+    }
 
     # save to json
     with open(results_path / "readability.json", "w", encoding="utf-8") as json_file:
