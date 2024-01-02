@@ -19,16 +19,17 @@ d <- read_csv("results/merged_eval_results.csv") %>%
   # rescale to 0-10 scale
   #sample_n(10) %>%
   #mutate(lix_response = lix_response / max(lix_response) * 10) %>%
-  mutate(spellcheck_response = spellcheck_response * 100) %>%
+  mutate(spellcheck_response = spellcheck_response * 100,
+         spellcheck_gold = spellcheck_gold * 100) %>%
   calc_ner_f1("correctness_response", "informativeness_gold",
               "informativeness_response", "knowledge_response",
               "faithfulness_response")
 
-###
+
 ## d %>%
-##   group_by(model) %>%
-##   summarize(k_m = mean(knowledge), k_s = sd(knowledge),
-##             f_m = mean(faithfulness), f_s = sd(faithfulness))
+##   filter(model == "mixtral-rag") %>%
+##   summarize(lix = mean(lix_gold, na.rm=T), k_s = sd(lix_gold, na.rm=T),
+##             f_m = mean(spellcheck_gold, na.rm=T), f_s = sd(spellcheck_gold, na.rm=T))
 
 
 ## d %>%
@@ -39,12 +40,19 @@ d <- read_csv("results/merged_eval_results.csv") %>%
 ##             fa_rougel_sd = sd(knowledge_response_rouge_l_precision, na.rm = T))
 
 
-## filter(d, model == "mixtral-rag", id == "48") %>%
-##   select(starts_with("knowledge_response")) %>%
+## filter(d, model == "mixtral-rag", id == "392") %>%
+##   select(-model) %>%
+##   select(starts_with("knowledge")) %>%
+##   select(ends_with("knowledge"), ends_with("rouge_1_precision"), ends_with("rouge_l_precision"), ends_with("BERTscore_f1"), ends_with("ner_f1")) %>%# %>%
 ##   unlist() %>%
 ##   round(2)
 
 
+## filter(d, id == 166) %>%
+##   select(model, starts_with("knowledge"))%>%
+##   select(model, ends_with("informativeness"), ends_with("correctness"), ends_with("knowledge"), ends_with("rouge_1_precision"), ends_with("rouge_l_precision"), ends_with("BERTscore_f1")) %>%
+##   select(-starts_with("informativeness_gold")) %>%
+##   print(width=500)
 
 
 llm_eval_scores <- d %>%
@@ -56,7 +64,9 @@ llm_eval_scores <- d %>%
   mutate(is_llm = ifelse(str_detect(name, "response"),
                          "Automatic Readability",
                          "LLM Eval")) %>%
-  mutate(name = str_split(name, "_") %>% map(pluck, 1) %>% unlist(9))
+  mutate(origin = str_detect(name, "gold"),
+         model = ifelse(origin, "human-gold-standard", model)) %>%
+  mutate(name = str_split(name, "_") %>% map(pluck, 1) %>% unlist())
 
 
 countbased <- d %>%
@@ -76,11 +86,11 @@ countbased <- d %>%
          model = ifelse(origin, "human-gold-standard", model))
 
 
-countbased %>%
-  filter(str_detect(name, "ner_f1")) %>%
-  group_by(model, name) %>%
-  summarise(mean = mean(value),
-            sd = sd(value))
+## countbased %>%
+##   filter(str_detect(name, "ner_f1")) %>%
+##   group_by(model, name) %>%
+##   summarise(mean = mean(value),
+##             sd = sd(value))
 
 ## countbased %>%
 ##   filter(str_detect(name, "ner_f1")) %>%
