@@ -97,6 +97,7 @@ if __name__ in "__main__":
         root_dir / "data" / "loop_q_and_a_w_ref_text_meta.jsonl"
     )
     gold_answers = map_filter(loop_data, "response")
+    gold_answers = [add_ending_punctuation(answer) for answer in gold_answers if answer is not None]
     tokens = [tokenize(text) for text in tqdm(gold_answers)]
     logging.info("Calculating LIX and spellcheck for gold")
     results["gold"] = {
