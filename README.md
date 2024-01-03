@@ -21,7 +21,7 @@ relation to human goals.
 Not shared yet.
 
 ## Code
-All python files only run code in `if __name__ == "__main__"` so that we can freely impport functions without side effects.
+All python files only run code in `if __name__ == "__main__"` so that we can freely import functions without side effects.
 
 ```
 src/data_*
