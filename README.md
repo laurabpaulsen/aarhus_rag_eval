@@ -7,7 +7,7 @@ Natural Language Processing at Msc Cognitive Science, Aarhus University
 ## Introduction
 With recent developments within natural language processing, the potential use-
 cases of large language models (LLM) have expanded by reframing any type of task
-to a Natural Language Generation (NLG) task (Brown et al., 2020). Consequently,
+to a Natural Language Generation (NLG) task. Consequently,
 there is a growing interest in using the models for internal and external use in
 commercial business and other organisations. The quality of the output of the
 model is crucial, but pinpointing which qualities to prioritise in a given context can
